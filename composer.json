@@ -1,0 +1,45 @@
+{
+  "name": "presstify-plugins/gateway-etransactions",
+  "description": "Extension PresstiFy de plateforme de paiement e-transactions.",
+  "type": "presstify-plugin",
+  "keywords": [
+    "presstify",
+    "plugins",
+    "wordpress",
+    "e-transactions",
+    "etransactions",
+    "paybox"
+  ],
+  "homepage": "https://svn.tigreblanc.fr/presstify-plugins/gateway-etransactions",
+  "time": "2020-05-01",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Jordy Manner",
+      "email": "jordy.manner@milkcreation.fr",
+      "role": "Developper"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://composer.tigreblanc.fr/presstify"
+    }
+  ],
+  "require": {
+    "composer/installers": "~1.0",
+    "presstify/framework": ">=1.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "tiFy\\Plugins\\GatewayEtransactions\\": ""
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config" : {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  }
+}
