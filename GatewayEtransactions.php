@@ -2,20 +2,14 @@
 
 namespace tiFy\Plugins\GatewayEtransactions;
 
-use tiFy\Contracts\{
-    Log\Logger,
-    Routing\Route,
-    View\Engine
-};
-use tiFy\Plugins\GatewayEtransactions\Contracts\{
-    GatewayEtransactions as GatewayEtransactionsContract,
-    GatewayEtransactionsController as GatewayEtransactionsControllerContract
-};
+use tiFy\Plugins\GatewayEtransactions\Contracts\GatewayEtransactions as GatewayEtransactionsContract;
 use tiFy\Plugins\GatewayEtransactions\Driver\{Etransactions, EtransactionsConfig};
-use tiFy\Support\{ParamsBag, Proxy\Log, Proxy\Router, Proxy\View};
+use tiFy\Plugins\GatewayEtransactions\Partial\PaymentForm;
+use tiFy\Support\ParamsBag;
+use tiFy\Support\Proxy\{Partial, View};
 
 /**
- * @desc Extension PresstiFy de plateforme de paiement e-transactions.
+ * @desc Extension PresstiFy de plateforme de paiement etransactions.
  * @author Jordy Manner <jordy@milkcreation.fr>
  * @package tiFy\Plugins\GatewayEtransactions
  * @version 2.0.0
@@ -53,7 +47,7 @@ class GatewayEtransactions implements GatewayEtransactionsContract
     private $booted = false;
 
     /**
-     * Instance du pilote e-transactions.
+     * Instance du pilote etransactions.
      * @var Etransactions|null
      */
     private $driver;
@@ -63,24 +57,6 @@ class GatewayEtransactions implements GatewayEtransactionsContract
      * @var ParamsBag
      */
     protected $config;
-
-    /**
-     * Instance du controleur.
-     * @var GatewayEtransactionsControllerContract
-     */
-    protected $controller;
-
-    /**
-     * Instance du gestionnaire de journalisation des événements.
-     * @var Logger|null
-     */
-    protected $log;
-
-    /**
-     * Liste des routes de traitement des requêtes de paiement.
-     * @var Route[]|array
-     */
-    protected $route = [];
 
     /**
      * Instance du gestionnaire des gabarits d'affichage.
@@ -108,52 +84,8 @@ class GatewayEtransactions implements GatewayEtransactionsContract
     public function boot(): GatewayEtransactionsContract
     {
         if (!$this->booted) {
-            // Initialisation du pilote e-transactions.
-            $this->driver = new Etransactions(new EtransactionsConfig($this->config()->only([
-                '3ds_enabled',
-                '3ds_amount',
-                'amount',
-                'debug',
-                'delay',
-                'environment',
-                'hmackey',
-                'identifier',
-                'ips',
-                'rank',
-                'site',
-            ])));
-
-            // Définition du routage de traitement des requêtes de paiement.
-            $controller = $this->config('controller', null);
-            if (is_string($controller) && is_callable($controller)) {
-                $controller = new $controller();
-            }
-
-            $this->controller = $controller instanceof GatewayEtransactionsControllerContract
-                ? $controller : new GatewayEtransactionsController();
-
-            $this->controller->setManager($this);
-
-            $pfx = 'gateways-etransations';
-            $endpoints = array_merge([
-                'checkout'  => "{$pfx}/checkout",
-                'failed'    => "{$pfx}/failed",
-                'cancelled' => "{$pfx}/cancelled",
-                'ipn'       => "{$pfx}/ipn",
-                'successed' => "{$pfx}/successed",
-            ]);
-
-            foreach ($endpoints as $name => $enpoint) {
-                if ($name === 'ipn') {
-                    $this->route[$name] = Router::post(
-                        'checkout', [$this->controller, 'index']
-                    );
-                } else {
-                    $this->route[$name] = Router::get(
-                        'checkout', [$this->controller, 'index']
-                    );
-                }
-            }
+            // - Déclaration du formulaire de paiement.
+            Partial::register('gateways-etransations.payment-form', (new PaymentForm())->setGateway($this));
 
             $this->booted = true;
         }
@@ -184,45 +116,21 @@ class GatewayEtransactions implements GatewayEtransactionsContract
      */
     public function driver(): ?Etransactions
     {
+        if (is_null($this->driver)) {
+            $this->driver = new Etransactions(new EtransactionsConfig($this->config()->all()));
+        }
+
         return $this->driver;
     }
 
     /**
      * @inheritDoc
      */
-    public function log(): Logger
+    public function resources(string $path = null): string
     {
-        if (is_null($this->log)) {
-            $this->log = Log::registerChannel('checkout');
-        }
+        $path = $path ? '/' . ltrim($path, '/') : '';
 
-        return $this->log;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function route(string $name): ?Route
-    {
-        return $this->route[$name] ?? null;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function view(): Engine
-    {
-        if (is_null($this->view)) {
-            if (($view = $this->config('view', [])) && ($view instanceof Engine)) {
-                $this->view = $view;
-            } else {
-                $this->view = View::getPlatesEngine(array_merge([
-                    'directory' => dirname(__FILE__) . '/Resources/views'
-                ], is_array($view) ? $view : []));
-            }
-        }
-
-        return $this->view;
+        return (file_exists(__DIR__ . "/Resources{$path}")) ? __DIR__ . "/Resources{$path}" : '';
     }
 
     /**
@@ -231,6 +139,16 @@ class GatewayEtransactions implements GatewayEtransactionsContract
     public function setConfig(array $attrs): GatewayEtransactionsContract
     {
         $this->config($attrs);
+
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function setDriver(Etransactions $driver): GatewayEtransactionsContract
+    {
+        $this->driver = $driver;
 
         return $this;
     }

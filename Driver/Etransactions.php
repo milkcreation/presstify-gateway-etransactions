@@ -4,22 +4,22 @@ namespace tiFy\Plugins\GatewayEtransactions\Driver;
 
 use Exception;
 use DateTime;
-use Detection\MobileDetect;
 
 /**
- * @see https://www.ca-moncommerce.com/ma-documentation/
+ * @see DOC: https://www.ca-moncommerce.com/ma-documentation/
+ * @see MANUEL : https://www.ca-moncommerce.com/wp-content/uploads/2018/08/tableau_correspondance_sips_atos-paybox_v4.pdf
  * @see TEST: https://www.ca-moncommerce.com/wp-content/uploads/2018/08/e-transactions_parametre_de_tests_v6.31.pdf
  */
 class Etransactions
 {
     /**
-     * Instance de la configuration.
+     * Instance du gestionnaire de configuration.
      * @var EtransactionsConfig|null
      */
     private $_config;
 
     /**
-     * Cartographie du nombre de décimales par devise.
+     * Cartographie du nombre de décimales associé à une devise.
      * @var int[]
      */
     private $_currencyDecimals = [
@@ -282,35 +282,44 @@ class Etransactions
         $this->_request = $request ?? EtransactionsRequest::createFromGlobals();
     }
 
-    public function addCartErrorMessage($message)
+    /**
+     * Récupération du message d'erreur associé à un code.
+     *
+     * @param string $code
+     *
+     * @return string
+     */
+    public function errorMessage(string $code): string
     {
-        wc_add_notice($message, 'error');
+        return $this->_errorCode[$code] ?? "Unknown error {$code}";
     }
 
     /**
-     * @param EtransactionsOrder $order Order
-     * @param string $type Type of payment (standard or threetime)
-     * @param array $additionalParams Additional parameters
+     * Récupération des paramètres de requête transaction.
+     *
+     * @param EtransactionsOrder $order
+     * @param string $type standard|threetime
+     * @param array $customs Liste de paramètres complémentaires.
      *
      * @return array
      *
      * @throws Exception
      */
-    public function buildSystemParams(EtransactionsOrder $order, string $type, array $additionalParams = []): array
+    public function fetchRequest(EtransactionsOrder $order, string $type = 'standard', array $customs = []): array
     {
         $values = [];
 
-        // Merchant information
+        // -- Informations du marchand.
+        $values['PBX_IDENTIFIANT'] = $this->_config->getIdentifier();
         $values['PBX_SITE'] = $this->_config->getSite();
         $values['PBX_RANG'] = $this->_config->getRank();
-        $values['PBX_IDENTIFIANT'] = $this->_config->getIdentifier();
 
-        // Order information
+        // -- Informations de commande
         $values['PBX_PORTEUR'] = $order->getBillingEmail();
-        $values['PBX_DEVISE'] = $this->getCurrency();
-        $values['PBX_CMD'] = "{$order->getId()} - {$order->getBillingName()}";
+        $values['PBX_DEVISE'] = $this->_config->getCurrency();
+        $values['PBX_CMD'] = $order->getId();
 
-        // Amount
+        // -- Montant de la commande.
         $orderAmount = $order->getTotal();
         $amountScale = $this->_currencyDecimals[$values['PBX_DEVISE']];
         $amountScale = pow(10, $amountScale);
@@ -329,21 +338,18 @@ class Etransactions
                 $values['PBX_TOTAL'] = sprintf('%03d', round($orderAmount * $amountScale));
                 break;
             case 'threetime':
-                // Compute each payment amount
                 $step = round($orderAmount * $amountScale / 3);
                 $firstStep = ($orderAmount * $amountScale) - 2 * $step;
                 $values['PBX_TOTAL'] = sprintf('%03d', $firstStep);
                 $values['PBX_2MONT1'] = sprintf('%03d', $step);
                 $values['PBX_2MONT2'] = sprintf('%03d', $step);
 
-                // Payment dates
                 $now = new DateTime();
                 $now->modify('1 month');
                 $values['PBX_DATE1'] = $now->format('d/m/Y');
                 $now->modify('1 month');
                 $values['PBX_DATE2'] = $now->format('d/m/Y');
 
-                // Force validity date of card
                 $values['PBX_DATEVALMAX'] = $now->format('ym');
                 break;
             default:
@@ -351,7 +357,7 @@ class Etransactions
                 break;
         }
 
-        // 3D Secure
+        // -- 3D Secure
         switch ($this->_config->get3DSEnabled()) {
             case 'never':
                 $enable3ds = false;
@@ -369,54 +375,43 @@ class Etransactions
                 break;
         }
 
-        // Enable is the default behaviour
         if (!$enable3ds) {
             $values['PBX_3DS'] = 'N';
         }
 
-        // E-Transactions => Magento
+        // -- E-Transactions.
         $values['PBX_RETOUR'] = 'M:M;R:R;T:T;A:A;B:B;C:C;D:D;E:E;F:F;G:G;I:I;J:J;N:N;O:O;P:P;Q:Q;S:S;W:W;Y:Y;K:K';
-        $values['PBX_RUF1'] = 'POST';
+        $values['PBX_RUF1'] = $this->_config->getIpnMethod();
 
-        // Choose correct language
-        if ($locale = get_locale()) {
-            $locale = preg_replace('#_.*$#', '', $locale);
-        }
+        // -- Langue.
+        $values['PBX_LANGUE'] = $this->_languages[$this->_config->getLang()] ?? $this->_languages['default'];
 
-        $values['PBX_LANGUE'] = $this->_languages[$locale] ?? $this->_languages['default'];
+        // -- Format d'affichage.
+        $values['PBX_SOURCE'] = $this->_config->getSource();
 
-        // Choose page format depending on browser/devise
-        if ($this->isMobile()) {
-            $values['PBX_SOURCE'] = 'XHTML';
-        }
-
-        // Misc.
+        // -- Hashage.
         $values['PBX_TIME'] = date('c');
-        $values['PBX_HASH'] = strtoupper($this->_config->getHmacAlgo());
+        $values['PBX_HASH'] = $this->_config->getHmacAlgo();
 
-        // Adding additionnal informations
-        $values = array_merge($values, $additionalParams);
+        // -- Paramètres complémentaires.
+        $values = array_merge($values, $customs);
 
-        // Sort parameters for simpler debug
         ksort($values);
 
-        // Sign values
-        $sign = $this->signValues($values);
-
-        // Hash HMAC
-        $values['PBX_HMAC'] = $sign;
+        // -- Signature
+        $values['PBX_HMAC'] = $this->signValues($values);
 
         return $values;
     }
 
     /**
-     * Récupération de la liste des paramètres au retour de la plateforme de paiement.
+     * Récupération de la liste des paramètres de retour de la plateforme de paiement.
      *
      * @return array
      *
      * @throws Exception
      */
-    public function fetchReturn(): array
+    public function fetchResponse(): array
     {
         if (!$data = file_get_contents('php://input') ?: $_SERVER['QUERY_STRING']) {
             throw new Exception('An unexpected error in E-Transactions call has occured: no parameters.');
@@ -463,35 +458,15 @@ class Etransactions
     }
 
     /**
-     * Récupération de l'IPV4 du client.
-     *
-     * @return string|null
-     */
-    public function getClientIp(): ?string
-    {
-        return $this->_request->getClientIp();
-    }
-
-    /**
-     * Récupération de la devise de paiement.
-     *
-     * @return string|null
-     */
-    public function getCurrency(): ?string
-    {
-        return EtransactionsCurrency::getIsoCode($this->_config->getCurrency());
-    }
-
-    /**
      * Récupération de l'url de la plateforme de paiement.
      *
      * @return string
      *
      * @throws Exception
      */
-    public function getSystemUrl(): string
+    public function getPlatformUrl(): string
     {
-        $urls = $this->_config->getSystemUrls();
+        $urls = $this->_config->getPlatformUrls();
 
         if (empty($urls)) {
             throw new Exception('Missing URL for E-Transactions system in configuration');
@@ -526,16 +501,8 @@ class Etransactions
     }
 
     /**
-     * Vérifie si le terminal de navigation est un mobile.
+     * Génération de la signature.
      *
-     * @return bool
-     */
-    public function isMobile(): bool
-    {
-        return (new MobileDetect())->isMobile();
-    }
-
-    /**
      * @param array $values
      *
      * @return string
@@ -559,46 +526,5 @@ class Etransactions
         }
 
         return strtoupper($sign);
-    }
-
-    /**
-     * Récupération du message d'erreur associé à un code.
-     *
-     * @param string $code
-     *
-     * @return string
-     */
-    public function toErrorMessage(string $code): string
-    {
-        return $this->_errorCode[$code] ?? "Unknown error {$code}";
-    }
-
-    /**
-     * Récupération de la commande depuis le jeton de retour.
-     *
-     * @param string $token
-     *
-     * @return EtransactionsOrder
-     *
-     * @throws Exception
-     */
-    public function untokenizeOrder(string $token): EtransactionsOrder
-    {
-        $parts = explode(' - ', $token, 2);
-        if (count($parts) < 2) {
-            throw new Exception(sprintf('Invalid decrypted token [%s]', $token));
-        }
-
-        if (!$order = EtransactionsOrder::createFromPostId((int)$parts[0])) {
-            throw new Exception(sprintf('Not existing order id from decrypted token [%s]', $token));
-        }
-
-        $name = $order->getBillingName();
-
-        if (($name != utf8_decode($parts[1])) && ($name != $parts[1])) {
-            throw new Exception(sprintf('Consistency error on descrypted token [%s]', $token));
-        }
-
-        return $order;
     }
 }

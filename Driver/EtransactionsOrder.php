@@ -3,8 +3,8 @@
 namespace tiFy\Plugins\GatewayEtransactions\Driver;
 
 use Illuminate\Support\{Arr, Str};
+use tiFy\Support\ParamsBag;
 use tiFy\Wordpress\Query\QueryPost;
-use WC_Order;
 
 class EtransactionsOrder
 {
@@ -15,6 +15,12 @@ class EtransactionsOrder
     protected $datas = [];
 
     /**
+     * Cartographie des données.
+     * @var array
+     */
+    protected static $datasMap = [];
+
+    /**
      * CONSTRUCTEUR
      *
      * @param array $datas
@@ -23,7 +29,15 @@ class EtransactionsOrder
      */
     public function __construct(array $datas = [])
     {
-        $this->datas = $datas;
+       $_datas = (new ParamsBag())->set($datas);
+       if ($_datas->count()) {
+           foreach (self::$datasMap as $_keys => $k) {
+               if ($_datas->has($_keys)) {
+                   $this->datas[$k] = $_datas->pull($_keys);
+               }
+           }
+           $this->datas = array_merge($this->datas, $_datas->all());
+       }
     }
 
     /**
@@ -33,54 +47,21 @@ class EtransactionsOrder
      *
      * @return static|null
      */
-    public static function createFromPostId(int $id): ?self
+    public static function createFromId(int $id): ?self
     {
         return ($order = QueryPost::createFromId($id)) ? new static($order->all()) : null;
     }
 
     /**
-     * Récupération d'une commande Woocommerce.
+     * Définition de la cartographie des données.
      *
-     * @param int|WC_Order|null $id
+     * @param array $map
      *
-     * @return static|null
-     *
-     * @todo
+     * @return void
      */
-    public static function createFromWcOrder($id): ?self
+    public static function setDatasMap(array $map): void
     {
-        if (function_exists('wc_get_order')) {
-            $order = call_user_func('wc_get_order', $id);
-        } else {
-            return null;
-        }
-
-        return $order instanceof WC_Order ? new static(get_object_vars($order)) : null;
-    }
-
-    /**
-     * Ajout d'une note de commande.
-     *
-     * @param string $message
-     *
-     * @return int
-     */
-    public function addOrderNote(string $message): int
-    {
-        return 0;
-    }
-
-    /**
-     * Ajout d'informations de réglement d'une commande.
-     *
-     * @param string $type
-     * @param array $data
-     *
-     * @return int
-     */
-    public function addOrderPayment(string $type, array $data)
-    {
-        return 0;
+        self::$datasMap = $map;
     }
 
     /**
@@ -95,25 +76,13 @@ class EtransactionsOrder
     }
 
     /**
-     * Récupération d'un paiement associé à la commande.
-     *
-     * @param string $type
-     *
-     * @return array|object|void|null
-     */
-    public function getPayment(string $type)
-    {
-        return null;
-    }
-
-    /**
      * Récupération de l'email de facturation.
      *
      * @return string
      */
     public function getBillingEmail(): string
     {
-        return $this->get('billing_email', '');
+        return $this->get('billing_email', 'johndoe@domain.ltd');
     }
 
     /**
@@ -123,7 +92,7 @@ class EtransactionsOrder
      */
     public function getBillingFirstname(): string
     {
-        return $this->get('billing_firstname', '');
+        return $this->get('billing_firstname', 'John');
     }
 
     /**
@@ -133,7 +102,7 @@ class EtransactionsOrder
      */
     public function getBillingLastname(): string
     {
-        return $this->get('billing_lastname', '');
+        return $this->get('billing_lastname', 'Doe');
     }
 
     /**
@@ -143,11 +112,9 @@ class EtransactionsOrder
      */
     public function getBillingName(): string
     {
-        $name = trim(preg_replace(
+        return trim(preg_replace(
             '/[^-. a-zA-Z0-9]/', '', Str::ascii($this->getBillingFirstname() . ' ' . $this->getBillingLastname())
         ));
-
-        return $name;
     }
 
     /**
@@ -157,7 +124,7 @@ class EtransactionsOrder
      */
     public function getId(): int
     {
-        return (int)$this->get('id', 0);
+        return (int)$this->get('id', rand());
     }
 
     /**
@@ -167,6 +134,6 @@ class EtransactionsOrder
      */
     public function getTotal(): float
     {
-        return (float)$this->get('total', 0);
+        return (float)$this->get('total', 1);
     }
 }
