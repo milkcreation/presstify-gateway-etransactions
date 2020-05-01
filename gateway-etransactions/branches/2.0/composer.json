@@ -7,10 +7,11 @@
     "plugins",
     "wordpress",
     "e-transactions",
+    "etransactions",
     "paybox"
   ],
   "homepage": "https://svn.tigreblanc.fr/presstify-plugins/gateway-etransactions",
-  "time": "2020-04-28",
+  "time": "2020-05-01",
   "license": "proprietary",
   "authors": [
     {

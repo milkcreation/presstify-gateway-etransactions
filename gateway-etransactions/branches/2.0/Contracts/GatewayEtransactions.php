@@ -2,7 +2,6 @@
 
 namespace tiFy\Plugins\GatewayEtransactions\Contracts;
 
-use tiFy\Contracts\{Log\Logger, Routing\Route, View\Engine};
 use tiFy\Contracts\Support\ParamsBag;
 use tiFy\Plugins\GatewayEtransactions\Driver\Etransactions;
 
@@ -26,34 +25,20 @@ interface GatewayEtransactions
     public function config($key = null, $default = null);
 
     /**
-     * Récupération de l'instance du pilote e-transactions.
+     * Récupération de l'instance du pilote etransactions.
      *
      * @return Etransactions|null
      */
     public function driver(): ?Etransactions;
 
     /**
-     * Récupération de l'instance du gestionnaire de journalisation.
+     * Récupération du chemin absolu vers le répertoire des ressources.
      *
-     * @return Logger
+     * @param string|null $path Chemin relatif d'une resource (répertoire|fichier).
+     *
+     * @return string
      */
-    public function log(): Logger;
-
-    /**
-     * Récupération d'une route de traitement de requête de paiement.
-     *
-     * @param string $name checkout|cancelled|failed|successed|ipn
-     *
-     * @return Route|null
-     */
-    public function route(string $name): ?Route;
-
-    /**
-     * Récupération de l'instance du gestionnaire de gabarit d'affichage.
-     *
-     * @return Engine
-     */
-    public function view(): Engine;
+    public function resources(string $path = null): string;
 
     /**
      * Définition des paramètres de configuration.
@@ -63,4 +48,13 @@ interface GatewayEtransactions
      * @return static
      */
     public function setConfig(array $attrs): GatewayEtransactions;
+
+    /**
+     * Définition du pilote ETransactions
+     *
+     * @param Etransactions $driver
+     *
+     * @return static
+     */
+    public function setDriver(Etransactions $driver): GatewayEtransactions;
 }
