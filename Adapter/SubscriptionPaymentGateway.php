@@ -49,6 +49,18 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
     {
         return array_merge(parent::defaults(), [
             /**
+             * Intitulé de qualification.
+             * @var string
+             */
+            'label' => __('Carte bancaire', 'tify'),
+            /**
+             * Attributs de configuration du formulaire de paiement.
+             * @see \tiFy\Plugins\GatewayEtransactions\Partial\PaymentForm;
+             * @var array
+             */
+            'payment-form' => [],
+            /** ---------------------------------------------------------------------------------------------------- */
+            /**
              * Activation de l'authentification 3D Secure.
              * @var string always|never|conditional
              */
@@ -66,11 +78,6 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
              * @var string|null
              */
             'currency'    => null,
-            /**
-             * Activation du mode de débogguage.
-             * @var bool
-             */
-            'debug'       => false,
             /**
              * Nombre de jours de différé entre la transaction et la capture des fonds.
              * @var int
@@ -145,16 +152,17 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                 'billing.lastname'  => 'billing_lastname',
             ]);
 
-            return Partial::get('gateways-etransations.payment-form', [
+            return Partial::get('gateways-etransations.payment-form', array_merge($this->params('payment-form', []), [
+                'debug'  => $this->isDebug(),
                 'order'  => new EtransactionsOrder($this->getOrder()->all()),
                 'params' => array_merge([
                     'PBX_ANNULE'     => $order->getHandleCancelledUrl(),
-                    'PBX_ATTENTE'    => $order->getHandlePendingUrl(),
+                    'PBX_ATTENTE'    => $order->getHandleOnHoldUrl(),
                     'PBX_EFFECTUE'   => $order->getHandleSuccessedUrl(),
                     'PBX_REFUSE'     => $order->getHandleFailedUrl(),
                     'PBX_REPONDRE_A' => $order->getHandleIpnUrl()
                 ], $this->params('params', [])),
-            ])->render();
+            ]))->render();
         } else {
             return '';
         }

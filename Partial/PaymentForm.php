@@ -37,6 +37,10 @@ class PaymentForm extends PartialDriver implements PaymentFormContract
     public function defaults(): array
     {
         return array_merge(parent::defaults(), [
+            'button' => [
+                'content' => __('Régler la commande', 'tify'),
+            ],
+            'debug'  => false,
             'order'  => null,
             'params' => [],
             'type'   => 'standard',
@@ -58,8 +62,9 @@ class PaymentForm extends PartialDriver implements PaymentFormContract
         } else {
             try {
                 $this->set([
-                    'action' => $this->gateway->driver()->getPlatformUrl(),
-                    'params' => $this->gateway->driver()->fetchRequest(
+                    'action'            => $this->gateway->driver()->getPlatformUrl(),
+                    'button.attrs.type' => 'submit',
+                    'params'            => $this->gateway->driver()->fetchRequest(
                         $order, $this->get('type', 'standard'), $this->get('params', [])),
                 ]);
             } catch (Exception $e) {
