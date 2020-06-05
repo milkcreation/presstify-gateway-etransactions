@@ -183,7 +183,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                 'tify'
             );
             $this->getOrder()->addNote($message);
-            $this->subscription()->log()->addInfo($message, [
+            $this->subscription()->log()->info($message, [
                 'order'   => $this->getOrder()->all(),
                 'gateway' => $params,
             ]);
@@ -197,7 +197,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                 'tify'
             );
             $this->getOrder()->addNote($message);
-            $this->subscription()->log()->addInfo($message, $this->getOrder()->all());
+            $this->subscription()->log()->info($message, $this->getOrder()->all());
 
             $this->subscription()->notify(__('Le paiement a été annulé.', 'tify'), 'warning');
         }
@@ -218,7 +218,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                 'tify'
             );
             $this->getOrder()->addNote($message);
-            $this->subscription()->log()->addInfo($message, [
+            $this->subscription()->log()->info($message, [
                 'order'   => $this->getOrder()->all(),
                 'gateway' => $params,
             ]);
@@ -232,7 +232,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                 'tify'
             );
             $this->getOrder()->addNote($message);
-            $this->subscription()->log()->addInfo($message, $this->getOrder()->all());
+            $this->subscription()->log()->info($message, $this->getOrder()->all());
 
             $this->subscription()->notify(__('Le paiement a été refusé.', 'tify'), 'warning');
         }
@@ -253,7 +253,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                         'tify'
                     );
                     $this->getOrder()->addNote($message);
-                    $this->subscription()->log()->addSuccess($message, [
+                    $this->subscription()->log()->success($message, [
                         'order'   => $this->getOrder()->all(),
                         'gateway' => $params,
                     ]);
@@ -280,7 +280,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                     'tify'
                 );
                 $this->getOrder()->addNote($message);
-                $this->subscription()->log()->addSuccess($message, [
+                $this->subscription()->log()->success($message, [
                     'order'   => $this->getOrder()->all(),
                     'gateway' => $params,
                 ]);
@@ -294,7 +294,7 @@ class SubscriptionPaymentGateway extends AbstractPaymentGateway
                     'tify'
                 );
                 $this->getOrder()->addNote($message);
-                $this->subscription()->log()->addSuccess($message, $this->getOrder()->all());
+                $this->subscription()->log()->success($message, $this->getOrder()->all());
             }
         }
     }
