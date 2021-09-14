@@ -10,20 +10,13 @@
     "etransactions",
     "paybox"
   ],
-  "homepage": "https://svn.tigreblanc.fr/presstify-plugins/gateway-etransactions",
-  "time": "2020-06-05",
-  "license": "proprietary",
+  "homepage": "https://github.com/milkcreation/presstify-gateway-etransactions.git",
+  "time": "2021-09-14",
   "authors": [
     {
       "name": "Jordy Manner",
       "email": "jordy.manner@milkcreation.fr",
       "role": "Developper"
-    }
-  ],
-  "repositories": [
-    {
-      "type": "composer",
-      "url": "https://composer.tigreblanc.fr/presstify"
     }
   ],
   "require": {
